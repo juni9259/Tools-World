@@ -1,0 +1,447 @@
+<xaiArtifact contentType="text/html" artifact_id="scientific-calculator-v1">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scientific Calculator</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/mathjs@11.6.0/lib/browser/math.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .btn-active {
+            transform: scale(0.95);
+            opacity: 0.9;
+        }
+        .history-item:hover {
+            background-color: rgba(156, 163, 175, 0.2);
+            cursor: pointer;
+        }
+        .dark .history-item:hover {
+            background-color: rgba(75, 85, 99, 0.5);
+        }
+        .transition-all {
+            transition: all 0.2s ease;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const Calculator = () => {
+            const [input, setInput] = useState('');
+            const [result, setResult] = useState('0');
+            const [history, setHistory] = useState([]);
+            const [isDarkMode, setIsDarkMode] = useState(false);
+            const [isRadians, setIsRadians] = useState(false);
+            const [memory, setMemory] = useState(0);
+            const [showHistory, setShowHistory] = useState(false);
+            const displayRef = useRef(null);
+
+            // Toggle dark mode
+            useEffect(() => {
+                document.body.classList.toggle('dark', isDarkMode);
+            }, [isDarkMode]);
+
+            // Handle keyboard input
+            useEffect(() => {
+                const handleKeyDown = (e) => {
+                    const key = e.key;
+                    
+                    // Numbers
+                    if (/[0-9]/.test(key)) {
+                        handleButtonClick(key);
+                    }
+                    // Operators
+                    else if (['+', '-', '*', '/', '%', '^', '!', '(', ')', '.'].includes(key)) {
+                        handleButtonClick(key);
+                    }
+                    // Enter for equals
+                    else if (key === 'Enter' || key === '=') {
+                        handleEquals();
+                    }
+                    // Backspace for clear
+                    else if (key === 'Backspace') {
+                        handleClear();
+                    }
+                    // Escape for AC
+                    else if (key === 'Escape') {
+                        handleAllClear();
+                    }
+                    // Special functions
+                    else if (key === 'p' && e.altKey) {
+                        handleButtonClick('π');
+                    }
+                    else if (key === 'e' && e.altKey) {
+                        handleButtonClick('e');
+                    }
+                };
+
+                window.addEventListener('keydown', handleKeyDown);
+                return () => window.removeEventListener('keydown', handleKeyDown);
+            }, [input]);
+
+            // Auto-scroll display
+            useEffect(() => {
+                if (displayRef.current) {
+                    displayRef.current.scrollLeft = displayRef.current.scrollWidth;
+                }
+            }, [input]);
+
+            const handleButtonClick = (value) => {
+                // Handle special cases
+                if (value === '±') {
+                    if (input.startsWith('-')) {
+                        setInput(input.substring(1));
+                    } else if (input) {
+                        setInput('-' + input);
+                    }
+                    return;
+                }
+
+                // Handle percentage
+                if (value === '%') {
+                    try {
+                        const evalResult = math.evaluate(input + '/100');
+                        setInput(evalResult.toString());
+                        return;
+                    } catch (e) {
+                        setResult('Error');
+                        return;
+                    }
+                }
+
+                // Handle factorial
+                if (value === '!') {
+                    try {
+                        const evalResult = math.factorial(parseFloat(input));
+                        setInput(evalResult.toString());
+                        return;
+                    } catch (e) {
+                        setResult('Error');
+                        return;
+                    }
+                }
+
+                // Handle constants
+                if (value === 'π') {
+                    setInput(input + math.pi.toString());
+                    return;
+                }
+                if (value === 'e') {
+                    setInput(input + math.e.toString());
+                    return;
+                }
+
+                // Handle memory recall
+                if (value === 'MR') {
+                    setInput(input + memory.toString());
+                    return;
+                }
+
+                // Handle other buttons
+                setInput(input + value);
+            };
+
+            const handleClear = () => {
+                if (input.length > 0) {
+                    setInput(input.slice(0, -1));
+                } else {
+                    setResult('0');
+                }
+            };
+
+            const handleAllClear = () => {
+                setInput('');
+                setResult('0');
+            };
+
+            const handleEquals = () => {
+                if (!input) return;
+
+                try {
+                    // Replace trigonometric functions with radian/degree conversion
+                    let expression = input;
+                    if (!isRadians) {
+                        expression = expression.replace(/sin\(/g, 'sin(pi/180*');
+                        expression = expression.replace(/cos\(/g, 'cos(pi/180*');
+                        expression = expression.replace(/tan\(/g, 'tan(pi/180*');
+                        expression = expression.replace(/asin\(/g, '180/pi*asin(');
+                        expression = expression.replace(/acos\(/g, '180/pi*acos(');
+                        expression = expression.replace(/atan\(/g, '180/pi*atan(');
+                    }
+
+                    // Replace log with log10 and ln with log
+                    expression = expression.replace(/log\(/g, 'log10(');
+                    expression = expression.replace(/ln\(/g, 'log(');
+
+                    // Replace ^ with pow for math.js
+                    expression = expression.replace(/\^/g, '**');
+
+                    // Evaluate the expression
+                    const evalResult = math.evaluate(expression);
+                    const formattedResult = formatResult(evalResult);
+
+                    setResult(formattedResult);
+                    setHistory(prev => [{ input, result: formattedResult }, ...prev].slice(0, 10));
+                } catch (e) {
+                    setResult('Error');
+                }
+            };
+
+            const formatResult = (value) => {
+                if (typeof value === 'number') {
+                    // Handle very large or small numbers with scientific notation
+                    if (Math.abs(value) >= 1e12 || (Math.abs(value) < 1e-6 && value !== 0)) {
+                        return value.toExponential(8).replace(/(\.\d*?[1-9])0+e/, '$1e').replace(/\.0+e/, 'e');
+                    }
+                    // Handle numbers with many decimal places
+                    const str = value.toString();
+                    if (str.includes('.') && str.split('.')[1].length > 8) {
+                        return value.toFixed(8).replace(/\.?0+$/, '');
+                    }
+                    return value.toString();
+                }
+                return value.toString();
+            };
+
+            const handleMemoryOperation = (op) => {
+                try {
+                    const currentValue = result !== '0' ? parseFloat(result) : input ? math.evaluate(input) : 0;
+                    
+                    switch (op) {
+                        case 'MS':
+                            setMemory(currentValue);
+                            break;
+                        case 'M+':
+                            setMemory(memory + currentValue);
+                            break;
+                        case 'M-':
+                            setMemory(memory - currentValue);
+                            break;
+                        case 'MC':
+                            setMemory(0);
+                            break;
+                        default:
+                            break;
+                    }
+                } catch (e) {
+                    setResult('Error');
+                }
+            };
+
+            const handleHistoryRecall = (historyItem) => {
+                setInput(historyItem.input);
+                setResult(historyItem.result);
+            };
+
+            const handleFunction = (func) => {
+                switch (func) {
+                    case 'sqrt':
+                        setInput(`sqrt(${input})`);
+                        break;
+                    case 'cbrt':
+                        setInput(input ? `nthRoot(${input},3)` : 'nthRoot(,3)');
+                        break;
+                    case 'nthroot':
+                        setInput(input ? `nthRoot(${input},` : 'nthRoot(,');
+                        break;
+                    case 'pow':
+                        setInput(input ? `${input}^` : '^');
+                        break;
+                    case 'abs':
+                        setInput(`abs(${input})`);
+                        break;
+                    case 'rand':
+                        setInput(Math.random().toString());
+                        break;
+                    case 'nCr':
+                        setInput(input ? `${input}C` : 'C');
+                        break;
+                    case 'nPr':
+                        setInput(input ? `${input}P` : 'P');
+                        break;
+                    default:
+                        setInput(`${func}(${input})`);
+                }
+            };
+
+            const CalculatorButton = ({ value, onClick, className = '', isFunction = false }) => {
+                const [isActive, setIsActive] = useState(false);
+
+                const handleClick = () => {
+                    setIsActive(true);
+                    setTimeout(() => setIsActive(false), 150);
+                    onClick();
+                };
+
+                return (
+                    <button
+                        className={`w-full h-14 rounded-lg flex items-center justify-center text-lg font-medium 
+                                  transition-all ${isActive ? 'btn-active' : ''} ${className} 
+                                  ${isFunction ? 'bg-blue-500 hover:bg-blue-600 text-white' : 
+                                    'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600'}`}
+                        onClick={handleClick}
+                        aria-label={value}
+                    >
+                        {value}
+                    </button>
+                );
+            };
+
+            return (
+                <div className={`min-h-screen flex flex-col items-center justify-center p-4 ${isDarkMode ? 'dark' : ''}`}>
+                    <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden transition-all">
+                        {/* Header */}
+                        <div className="p-4 flex justify-between items-center bg-gray-100 dark:bg-gray-700">
+                            <h1 className="text-xl font-bold">Scientific Calculator</h1>
+                            <div className="flex space-x-2">
+                                <button 
+                                    className={`px-3 py-1 rounded-md ${isRadians ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}
+                                    onClick={() => setIsRadians(!isRadians)}
+                                >
+                                    {isRadians ? 'RAD' : 'DEG'}
+                                </button>
+                                <button 
+                                    className="px-3 py-1 rounded-md bg-gray-200 dark:bg-gray-600"
+                                    onClick={() => setIsDarkMode(!isDarkMode)}
+                                >
+                                    {isDarkMode ? '☀️' : '🌙'}
+                                </button>
+                                <button 
+                                    className="px-3 py-1 rounded-md bg-gray-200 dark:bg-gray-600"
+                                    onClick={() => setShowHistory(!showHistory)}
+                                >
+                                    {showHistory ? 'Calc' : 'Hist'}
+                                </button>
+                            </div>
+                        </div>
+
+                        {showHistory ? (
+                            <div className="p-4 h-96 overflow-y-auto">
+                                <h2 className="text-lg font-semibold mb-2">History</h2>
+                                {history.length === 0 ? (
+                                    <p className="text-gray-500 dark:text-gray-400">No history yet</p>
+                                ) : (
+                                    <ul className="space-y-2">
+                                        {history.map((item, index) => (
+                                            <li 
+                                                key={index} 
+                                                className="history-item p-2 rounded transition-all"
+                                                onClick={() => handleHistoryRecall(item)}
+                                            >
+                                                <div className="text-sm text-gray-600 dark:text-gray-300">{item.input}</div>
+                                                <div className="font-semibold">= {item.result}</div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        ) : (
+                            <>
+                                {/* Display */}
+                                <div className="p-4 bg-gray-50 dark:bg-gray-700">
+                                    <div 
+                                        ref={displayRef}
+                                        className="text-right text-gray-500 dark:text-gray-400 text-sm h-6 overflow-x-auto whitespace-nowrap"
+                                    >
+                                        {input || '0'}
+                                    </div>
+                                    <div className="text-right text-3xl font-bold mt-2 h-10 overflow-x-auto whitespace-nowrap">
+                                        {result}
+                                    </div>
+                                </div>
+
+                                {/* Memory display */}
+                                <div className="px-4 py-2 bg-gray-100 dark:bg-gray-600 text-sm">
+                                    Memory: {memory}
+                                </div>
+
+                                {/* Keypad */}
+                                <div className="p-4 grid grid-cols-5 gap-3">
+                                    {/* Row 1 */}
+                                    <CalculatorButton value="MC" onClick={() => handleMemoryOperation('MC')} isFunction />
+                                    <CalculatorButton value="MR" onClick={() => handleButtonClick('MR')} isFunction />
+                                    <CalculatorButton value="M+" onClick={() => handleMemoryOperation('M+')} isFunction />
+                                    <CalculatorButton value="M-" onClick={() => handleMemoryOperation('M-')} isFunction />
+                                    <CalculatorButton value="MS" onClick={() => handleMemoryOperation('MS')} isFunction />
+
+                                    {/* Row 2 */}
+                                    <CalculatorButton value="sin" onClick={() => handleFunction('sin')} isFunction />
+                                    <CalculatorButton value="cos" onClick={() => handleFunction('cos')} isFunction />
+                                    <CalculatorButton value="tan" onClick={() => handleFunction('tan')} isFunction />
+                                    <CalculatorButton value="π" onClick={() => handleButtonClick('π')} isFunction />
+                                    <CalculatorButton value="e" onClick={() => handleButtonClick('e')} isFunction />
+
+                                    {/* Row 3 */}
+                                    <CalculatorButton value="asin" onClick={() => handleFunction('asin')} isFunction />
+                                    <CalculatorButton value="acos" onClick={() => handleFunction('acos')} isFunction />
+                                    <CalculatorButton value="atan" onClick={() => handleFunction('atan')} isFunction />
+                                    <CalculatorButton value="log" onClick={() => handleFunction('log')} isFunction />
+                                    <CalculatorButton value="ln" onClick={() => handleFunction('ln')} isFunction />
+
+                                    {/* Row 4 */}
+                                    <CalculatorButton value="√" onClick={() => handleFunction('sqrt')} isFunction />
+                                    <CalculatorButton value="∛" onClick={() => handleFunction('cbrt')} isFunction />
+                                    <CalculatorButton value="ⁿ√" onClick={() => handleFunction('nthroot')} isFunction />
+                                    <CalculatorButton value="x^y" onClick={() => handleFunction('pow')} isFunction />
+                                    <CalculatorButton value="x!" onClick={() => handleButtonClick('!')} isFunction />
+
+                                    {/* Row 5 */}
+                                    <CalculatorButton value="nCr" onClick={() => handleFunction('nCr')} isFunction />
+                                    <CalculatorButton value="nPr" onClick={() => handleFunction('nPr')} isFunction />
+                                    <CalculatorButton value="Rand" onClick={() => handleFunction('rand')} isFunction />
+                                    <CalculatorButton value="|x|" onClick={() => handleFunction('abs')} isFunction />
+                                    <CalculatorButton value="±" onClick={() => handleButtonClick('±')} isFunction />
+
+                                    {/* Row 6 */}
+                                    <CalculatorButton value="(" onClick={() => handleButtonClick('(')} />
+                                    <CalculatorButton value=")" onClick={() => handleButtonClick(')')} />
+                                    <CalculatorButton value="%" onClick={() => handleButtonClick('%')} />
+                                    <CalculatorButton value="AC" onClick={handleAllClear} className="bg-red-500 hover:bg-red-600 text-white" />
+                                    <CalculatorButton value="C" onClick={handleClear} className="bg-red-400 hover:bg-red-500 text-white" />
+
+                                    {/* Row 7 */}
+                                    <CalculatorButton value="7" onClick={() => handleButtonClick('7')} />
+                                    <CalculatorButton value="8" onClick={() => handleButtonClick('8')} />
+                                    <CalculatorButton value="9" onClick={() => handleButtonClick('9')} />
+                                    <CalculatorButton value="/" onClick={() => handleButtonClick('/')} className="bg-blue-500 hover:bg-blue-600 text-white" />
+                                    <CalculatorButton value="^" onClick={() => handleButtonClick('^')} className="bg-blue-500 hover:bg-blue-600 text-white" />
+
+                                    {/* Row 8 */}
+                                    <CalculatorButton value="4" onClick={() => handleButtonClick('4')} />
+                                    <CalculatorButton value="5" onClick={() => handleButtonClick('5')} />
+                                    <CalculatorButton value="6" onClick={() => handleButtonClick('6')} />
+                                    <CalculatorButton value="*" onClick={() => handleButtonClick('*')} className="bg-blue-500 hover:bg-blue-600 text-white" />
+                                    <CalculatorButton value="=" onClick={handleEquals} className="row-span-1 bg-green-500 hover:bg-green-600 text-white" />
+
+                                    {/* Row 9 */}
+                                    <CalculatorButton value="1" onClick={() => handleButtonClick('1')} />
+                                    <CalculatorButton value="2" onClick={() => handleButtonClick('2')} />
+                                    <CalculatorButton value="3" onClick={() => handleButtonClick('3')} />
+                                    <CalculatorButton value="-" onClick={() => handleButtonClick('-')} className="bg-blue-500 hover:bg-blue-600 text-white" />
+                                    <CalculatorButton value="=" onClick={handleEquals} className="row-span-2 bg-green-500 hover:bg-green-600 text-white" />
+
+                                    {/* Row 10 */}
+                                    <CalculatorButton value="0" onClick={() => handleButtonClick('0')} className="col-span-2" />
+                                    <CalculatorButton value="." onClick={() => handleButtonClick('.')} />
+                                    <CalculatorButton value="+" onClick={() => handleButtonClick('+')} className="bg-blue-500 hover:bg-blue-600 text-white" />
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<Calculator />);
+    </script>
+</body>
+</html>
+</xaiArtifact>
