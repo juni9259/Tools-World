@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Photo Maker - Easy WebTool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .input-section, .preview-section {
+            margin: 20px 0;
+        }
+        .file-input {
+            display: none;
+        }
+        .file-label {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .file-label:hover {
+            background-color: #0056b3;
+        }
+        select {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            margin: 10px 0;
+            width: 100%;
+            max-width: 300px;
+        }
+        .convert-btn {
+            padding: 12px 24px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+        .convert-btn:hover {
+            background-color: #218838;
+        }
+        .convert-btn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .preview-section img {
+            max-width: 100%;
+            max-height: 300px;
+            margin-top: 20px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+        }
+        .error {
+            color: #dc3545;
+            margin-top: 10px;
+        }
+        .loading {
+            color: #007bff;
+            margin-top: 10px;
+        }
+        .download-btn {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 24px;
+            background-color: #17a2b8;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .download-btn:hover {
+            background-color: #138496;
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            .file-label, .convert-btn, .download-btn {
+                font-size: 16px;
+                padding: 10px 20px;
+            }
+            select {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Profile Photo Maker</h1>
+        <div class="input-section">
+            <input type="file" id="imageInput" class="file-input" accept="image/*">
+            <label for="imageInput" class="file-label">Select Image</label>
+            <select id="formatSelect">
+                <option value="square">Square (1:1)</option>
+                <option value="circle">Circle</option>
+                <option value="rectangle">Rectangle (4:3)</option>
+            </select>
+            <button class="convert-btn" id="convertBtn" disabled>Convert</button>
+            <p id="status" class="loading" style="display: none;">Processing image...</p>
+            <p id="error" class="error" style="display: none;"></p>
+        </div>
+        <div class="preview-section">
+            <img id="preview" style="display: none;" alt="Preview">
+            <a id="downloadLink" class="download-btn" style="display: none;" download="profile_photo.png">Download Profile Photo</a>
+        </div>
+    </div>
+    <script>
+        const imageInput = document.getElementById('imageInput');
+        const formatSelect = document.getElementById('formatSelect');
+        const convertBtn = document.getElementById('convertBtn');
+        const status = document.getElementById('status');
+        const error = document.getElementById('error');
+        const preview = document.getElementById('preview');
+        const downloadLink = document.getElementById('downloadLink');
+
+        let originalImage = null;
+
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                if (!file.type.startsWith('image/')) {
+                    showError('Please upload a valid image file.');
+                    convertBtn.disabled = true;
+                    return;
+                }
+                if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                    showError('File size exceeds 5MB.');
+                    convertBtn.disabled = true;
+                    return;
+                }
+                error.style.display = 'none';
+                convertBtn.disabled = false;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    originalImage = new Image();
+                    originalImage.src = e.target.result;
+                    originalImage.onload = () => {
+                        preview.src = originalImage.src;
+                        preview.style.display = 'block';
+                    };
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        convertBtn.addEventListener('click', () => {
+            if (!originalImage) {
+                showError('Please upload an image first.');
+                return;
+            }
+            status.style.display = 'block';
+            convertBtn.disabled = true;
+            error.style.display = 'none';
+            downloadLink.style.display = 'none';
+
+            setTimeout(() => {
+                processImage(formatSelect.value);
+            }, 1000); // Simulate processing time
+        });
+
+        function processImage(format) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            let width, height, offsetX, offsetY;
+
+            if (format === 'square') {
+                const size = Math.min(originalImage.width, originalImage.height);
+                width = size;
+                height = size;
+                offsetX = (originalImage.width - size) / 2;
+                offsetY = (originalImage.height - size) / 2;
+            } else if (format === 'rectangle') {
+                width = Math.min(originalImage.width, originalImage.height * 4 / 3);
+                height = width * 3 / 4;
+                offsetX = (originalImage.width - width) / 2;
+                offsetY = (originalImage.height - height) / 2;
+            } else if (format === 'circle') {
+                const size = Math.min(originalImage.width, originalImage.height);
+                width = size;
+                height = size;
+                offsetX = (originalImage.width - size) / 2;
+                offsetY = (originalImage.height - size) / 2;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+
+            if (format === 'circle') {
+                ctx.beginPath();
+                ctx.arc(width / 2, height / 2, width / 2, 0, Math.PI * 2);
+                ctx.clip();
+            }
+
+            ctx.drawImage(originalImage, offsetX, offsetY, width, height, 0, 0, width, height);
+
+            const dataUrl = canvas.toDataURL('image/png');
+            preview.src = dataUrl;
+            preview.style.display = 'block';
+            downloadLink.href = dataUrl;
+            downloadLink.style.display = 'inline-block';
+            status.style.display = 'none';
+            convertBtn.disabled = false;
+        }
+
+        function showError(message) {
+            error.textContent = message;
+            error.style.display = 'block';
+            preview.style.display = 'none';
+            downloadLink.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
