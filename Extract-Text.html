@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extract Text from Photo - Easy WebTool</title>
+    <script src="https://unpkg.com/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .input-section, .preview-section, .output-section {
+            margin: 20px 0;
+        }
+        .file-input {
+            display: none;
+        }
+        .file-label {
+            display: inline-block;
+            padding: 15px 30px;
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .file-label:hover {
+            background-color: #0056b3;
+        }
+        .extract-btn {
+            padding: 15px 30px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 15px;
+        }
+        .extract-btn:hover {
+            background-color: #218838;
+        }
+        .extract-btn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .preview-section img {
+            max-width: 100%;
+            max-height: 300px;
+            margin-top: 20px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+        }
+        .output-section textarea {
+            width: 100%;
+            max-width: 100%;
+            min-height: 100px;
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            margin-top: 10px;
+            resize: vertical;
+        }
+        .error {
+            color: #dc3545;
+            margin-top: 10px;
+            font-size: 16px;
+        }
+        .loading {
+            color: #007bff;
+            margin-top: 10px;
+            font-size: 16px;
+        }
+        .download-btn {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 15px 30px;
+            background-color: #17a2b8;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 18px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .download-btn:hover {
+            background-color: #138496;
+        }
+        .instructions {
+            font-size: 14px;
+            color: #666;
+            margin-top: 10px;
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            .file-label, .extract-btn, .download-btn {
+                font-size: 18px;
+                padding: 12px 24px;
+            }
+            .output-section textarea {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Extract Text from Photo</h1>
+        <div class="input-section">
+            <input type="file" id="imageInput" class="file-input" accept="image/*">
+            <label for="imageInput" class="file-label">Select Image</label>
+            <p class="instructions">Upload an image containing text to extract.</p>
+            <button class="extract-btn" id="extractBtn" disabled>Extract Text</button>
+            <p id="status" class="loading" style="display: none;">Processing image...</p>
+            <p id="error" class="error" style="display: none;"></p>
+        </div>
+        <div class="preview-section">
+            <img id="preview" style="display: none;" alt="Preview">
+        </div>
+        <div class="output-section">
+            <textarea id="extractedText" readonly placeholder="Extracted text will appear here..."></textarea>
+            <a id="downloadLink" class="download-btn" style="display: none;" href="#" download="extracted_text.txt">Download Extracted Text</a>
+        </div>
+    </div>
+    <script>
+        const imageInput = document.getElementById('imageInput');
+        const extractBtn = document.getElementById('extractBtn');
+        const status = document.getElementById('status');
+        const error = document.getElementById('error');
+        const preview = document.getElementById('preview');
+        const extractedText = document.getElementById('extractedText');
+        const downloadLink = document.getElementById('downloadLink');
+
+        let originalImage = null;
+
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                if (!file.type.startsWith('image/')) {
+                    showError('Please upload a valid image file (e.g., PNG, JPG).');
+                    extractBtn.disabled = true;
+                    return;
+                }
+                if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                    showError('File size exceeds 5MB.');
+                    extractBtn.disabled = true;
+                    return;
+                }
+                error.style.display = 'none';
+                extractBtn.disabled = false;
+                extractedText.value = '';
+                downloadLink.style.display = 'none';
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    originalImage = new Image();
+                    originalImage.src = e.target.result;
+                    originalImage.onload = () => {
+                        preview.src = originalImage.src;
+                        preview.style.display = 'block';
+                    };
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        extractBtn.addEventListener('click', () => {
+            if (!originalImage) {
+                showError('Please upload an image first.');
+                return;
+            }
+            status.style.display = 'block';
+            extractBtn.disabled = true;
+            error.style.display = 'none';
+            downloadLink.style.display = 'none';
+            extractedText.value = '';
+
+            Tesseract.recognize(
+                originalImage.src,
+                'eng',
+                {
+                    logger: (m) => {
+                        if (m.status === 'recognizing text') {
+                            status.textContent = `Processing image... ${Math.round(m.progress * 100)}%`;
+                        }
+                    }
+                }
+            ).then(({ data: { text } }) => {
+                extractedText.value = text || 'No text detected in the image.';
+                // Create a Blob with the extracted text
+                const blob = new Blob([text], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                // Set the download link
+                downloadLink.href = url;
+                downloadLink.style.display = 'inline-block';
+                // Clean up the URL when the link is clicked
+                downloadLink.onclick = () => {
+                    setTimeout(() => {
+                        URL.revokeObjectURL(url);
+                    }, 100);
+                };
+                status.style.display = 'none';
+                extractBtn.disabled = false;
+            }).catch((err) => {
+                showError('Error processing image: ' + err.message);
+                status.style.display = 'none';
+                extractBtn.disabled = false;
+            });
+        });
+
+        function showError(message) {
+            error.textContent = message;
+            error.style.display = 'block';
+            preview.style.display = 'none';
+            extractedText.value = '';
+            downloadLink.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
