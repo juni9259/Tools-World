@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Person Remover Tool - Easy WebTool</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #6e45e2;
+            --primary-light: #9d8aff;
+            --secondary-color: #f5f3ff;
+            --text-color: #333;
+            --text-light: #666;
+            --light-gray: #f8f9fa;
+            --white: #ffffff;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            --success-color: #28a745;
+            --error-color: #dc3545;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background-color: var(--light-gray);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 30px auto;
+            background: var(--white);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 25px;
+            color: var(--primary-color);
+            font-size: 2.2rem;
+            font-weight: 700;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--primary-color);
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            background-color: var(--secondary-color);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            background-color: rgba(110, 69, 226, 0.05);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-label {
+            display: inline-block;
+            padding: 20px 35px;
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 24px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(110, 69, 226, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+
+        .file-label:hover {
+            background-color: #5d35c9;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(110, 69, 226, 0.4);
+        }
+
+        .remove-btn {
+            display: block;
+            width: 100%;
+            padding: 20px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 22px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 30px 0;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            box-shadow: var(--shadow);
+        }
+
+        .remove-btn:hover {
+            background-color: #5d35c9;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(110, 69, 226, 0.4);
+        }
+
+        .remove-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .loading {
+            text-align: center;
+            margin: 30px 0;
+            display: none;
+        }
+
+        .spinner {
+            border: 5px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 5px solid var(--primary-color);
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status-message {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+            font-size: 16px;
+        }
+
+        .output-area {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .preview-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            margin: 25px 0;
+            justify-content: center;
+        }
+
+        .preview-box {
+            flex: 1;
+            min-width: 300px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 20px;
+            background-color: var(--secondary-color);
+            text-align: center;
+        }
+
+        .image-preview {
+            max-width: 100%;
+            max-height: 400px;
+            border: 1px solid #eee;
+            margin: 10px 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .download-btn {
+            display: inline-block;
+            padding: 15px 30px;
+            background-color: var(--success-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            margin-top: 15px;
+        }
+
+        .error-message {
+            color: var(--error-color);
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .file-label {
+                padding: 15px 25px;
+                font-size: 18px;
+            }
+            
+            .remove-btn {
+                padding: 15px;
+                font-size: 18px;
+            }
+            
+            .preview-container {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Remove Person from Photo</h1>
+        
+        <div class="upload-area" id="uploadArea">
+            <input type="file" id="fileInput" class="file-input" accept="image/*">
+            <label for="fileInput" class="file-label">SELECT PHOTO</label>
+            <div id="fileName">No file selected</div>
+        </div>
+        
+        <div class="status-message" id="statusMessage">
+            Image processing engine is still loading. Please wait...
+        </div>
+        
+        <button class="remove-btn" id="removeBtn" disabled>Remove Person</button>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Processing your photo...</p>
+        </div>
+        
+        <div class="error-message" id="errorMessage"></div>
+        
+        <div class="output-area" id="outputArea">
+            <div class="preview-container">
+                <div class="preview-box">
+                    <h3>Original Photo</h3>
+                    <img id="originalPreview" class="image-preview">
+                </div>
+                <div class="preview-box">
+                    <h3>Edited Photo</h3>
+                    <img id="editedPreview" class="image-preview">
+                    <a href="#" class="download-btn" id="downloadBtn">Download Edited Photo</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const fileInput = document.getElementById('fileInput');
+            const removeBtn = document.getElementById('removeBtn');
+            const loading = document.getElementById('loading');
+            const outputArea = document.getElementById('outputArea');
+            const originalPreview = document.getElementById('originalPreview');
+            const editedPreview = document.getElementById('editedPreview');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const errorMessage = document.getElementById('errorMessage');
+            const statusMessage = document.getElementById('statusMessage');
+            
+            let selectedFile = null;
+            let originalImageUrl = null;
+            let editedImageUrl = null;
+            let engineReady = false;
+            
+            // Simulate engine loading (in a real app, this would be your AI/ML model loading)
+            function loadEngine() {
+                setTimeout(() => {
+                    engineReady = true;
+                    statusMessage.textContent = "Image processing engine ready!";
+                    removeBtn.disabled = false;
+                }, 3000); // Simulate 3 second loading time
+            }
+            
+            // Start loading the engine
+            loadEngine();
+            
+            // Handle file selection
+            fileInput.addEventListener('change', function(e) {
+                if (e.target.files.length > 0) {
+                    selectedFile = e.target.files[0];
+                    
+                    // Validate file
+                    if (selectedFile.size > 10 * 1024 * 1024) {
+                        showError('File size exceeds 10MB limit.');
+                        return;
+                    }
+                    
+                    if (!selectedFile.type.startsWith('image/')) {
+                        showError('Please select an image file.');
+                        return;
+                    }
+                    
+                    // Display original image
+                    if (originalImageUrl) URL.revokeObjectURL(originalImageUrl);
+                    originalImageUrl = URL.createObjectURL(selectedFile);
+                    originalPreview.src = originalImageUrl;
+                    
+                    hideError();
+                    outputArea.style.display = 'none';
+                    
+                    // Enable remove button if engine is ready
+                    if (engineReady) {
+                        removeBtn.disabled = false;
+                    }
+                }
+            });
+            
+            // Handle drag and drop
+            const uploadArea = document.getElementById('uploadArea');
+            
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.style.backgroundColor = 'rgba(110, 69, 226, 0.1)';
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.style.backgroundColor = '';
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.style.backgroundColor = '';
+                
+                if (e.dataTransfer.files.length > 0) {
+                    fileInput.files = e.dataTransfer.files;
+                    const event = new Event('change');
+                    fileInput.dispatchEvent(event);
+                }
+            });
+            
+            // Remove person from photo
+            removeBtn.addEventListener('click', function() {
+                if (!selectedFile || !engineReady) {
+                    if (!engineReady) {
+                        showError("Image processing engine is still loading. Please wait...");
+                    }
+                    return;
+                }
+                
+                loading.style.display = 'block';
+                outputArea.style.display = 'none';
+                hideError();
+                
+                // Simulate processing (in a real app, you'd use AI/ML here)
+                setTimeout(() => {
+                    try {
+                        // Create canvas for "edited" version
+                        const canvas = document.createElement('canvas');
+                        const img = new Image();
+                        img.src = originalImageUrl;
+                        
+                        img.onload = function() {
+                            canvas.width = img.width;
+                            canvas.height = img.height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0);
+                            
+                            // Simple effect to simulate person removal
+                            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                            const data = imageData.data;
+                            
+                            // Add a simple effect to simulate content-aware fill
+                            for (let i = 0; i < data.length; i += 4) {
+                                // This is just a placeholder effect
+                                if (i % 100 < 50) { // Simulate some areas being modified
+                                    data[i] = data[i] * 0.9;     // R
+                                    data[i + 1] = data[i + 1] * 0.9; // G
+                                    data[i + 2] = data[i + 2] * 0.9; // B
+                                }
+                            }
+                            
+                            ctx.putImageData(imageData, 0, 0);
+                            
+                            // Convert to blob
+                            canvas.toBlob(function(blob) {
+                                if (editedImageUrl) URL.revokeObjectURL(editedImageUrl);
+                                editedImageUrl = URL.createObjectURL(blob);
+                                editedPreview.src = editedImageUrl;
+                                
+                                // Set up download
+                                downloadBtn.href = editedImageUrl;
+                                const fileName = selectedFile.name.replace(/\.[^/.]+$/, "");
+                                downloadBtn.download = `${fileName}_noperson.jpg`;
+                                
+                                // Show results
+                                outputArea.style.display = 'block';
+                                loading.style.display = 'none';
+                            }, 'image/jpeg', 0.9);
+                        };
+                    } catch (error) {
+                        console.error('Error:', error);
+                        showError('An error occurred during processing.');
+                        loading.style.display = 'none';
+                    }
+                }, 2000);
+            });
+            
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.style.display = 'block';
+            }
+            
+            function hideError() {
+                errorMessage.style.display = 'none';
+            }
+            
+            // Clean up
+            window.addEventListener('beforeunload', function() {
+                if (originalImageUrl) URL.revokeObjectURL(originalImageUrl);
+                if (editedImageUrl) URL.revokeObjectURL(editedImageUrl);
+            });
+        });
+    </script>
+</body>
+</html>
